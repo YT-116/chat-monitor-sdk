@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sky-monitor-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: xiaoer
+      POSTGRES_DB: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - sky_monitor_postgres_data:/var/lib/postgresql/data
+      - ./sql/init/postgresql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: sky-monitor-redis
+    restart: unless-stopped
+    command: ['redis-server', '--requirepass', 'skyRedis2024']
+    ports:
+      - '6379:6379'
+    volumes:
+      - sky_monitor_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'skyRedis2024', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: sky-monitor-clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: skyClickhouse2024
+      CLICKHOUSE_DB: default
+    ports:
+      - '8123:8123'
+      - '9000:9000'
+    volumes:
+      - sky_monitor_clickhouse_data:/var/lib/clickhouse
+      - ./sql/init/clickhouse:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'clickhouse-client',
+          '--user',
+          'default',
+          '--password',
+          'skyClickhouse2024',
+          '--query',
+          'SELECT 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sky_monitor_postgres_data:
+  sky_monitor_redis_data:
+  sky_monitor_clickhouse_data:
